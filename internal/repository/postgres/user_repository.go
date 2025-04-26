@@ -44,6 +44,10 @@ func (r *userRepository) Find(ctx context.Context, id uint) (*user.User, error) 
     return &u, nil
 }
 
+func (r *userRepository) FindByEmail(ctx context.Context, email string) (*user.User, error) {
+    return nil, nil
+}
+
 func (r *userRepository) Create(ctx context.Context, u *user.User) error {
     query := `INSERT INTO users (username, email, password, created_at, updated_at) 
               VALUES ($1, $2, $3, $4, $5) RETURNING id`
@@ -61,3 +65,14 @@ func (r *userRepository) Create(ctx context.Context, u *user.User) error {
     return row.Scan(&u.ID)
 }
 
+func (r *userRepository) Update(ctx context.Context, u *user.User) error {
+    return nil
+}
+
+func (r *userRepository) Delete(ctx context.Context, id uint) error {
+    return nil
+}
+
+func (r *userRepository) List(ctx context.Context, limit, offset int) ([]*user.User, error) {
+    return nil, nil
+}

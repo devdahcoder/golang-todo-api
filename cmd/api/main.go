@@ -19,7 +19,7 @@ func main() {
     }
     defer cfg.Close()
 	
-	app := server.New(cfg)
+	app := server.NewServer(cfg)
     
     go func() {
 		log.Printf("Starting server on %s", cfg.ServerAddress)

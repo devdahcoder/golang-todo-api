@@ -94,4 +94,3 @@ func (h *UserHandler) Login(c *fiber.Ctx) error {
     return c.JSON(authResponse)
 }
 
-// Implement other handler methods...

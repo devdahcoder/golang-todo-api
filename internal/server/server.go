@@ -13,7 +13,7 @@ import (
 )
 
 
-func New(cfg *config.Config) *fiber.App {
+func NewServer(cfg *config.Config) *fiber.App {
 
 	userRepository := postgres.NewUserRepository(cfg.Db)
 
@@ -28,8 +28,8 @@ func New(cfg *config.Config) *fiber.App {
 	userHandler := handlers.NewUserHandler(userService)
 
 	app := fiber.New(fiber.Config{
-		StrictRouting: true,
-		ErrorHandler:  customErrorHandler,		
+		// StrictRouting: true,
+		// ErrorHandler:  customErrorHandler,		
 	})
 
 	app.Use(logger.New())
@@ -42,14 +42,14 @@ func New(cfg *config.Config) *fiber.App {
 	
 }
 
-func customErrorHandler(c fiber.Ctx, err error) error {
-    code := fiber.StatusInternalServerError
+// func customErrorHandler(c fiber.Ctx, err error) error {
+//     code := fiber.StatusInternalServerError
     
-    if e, ok := err.(*fiber.Error); ok {
-        code = e.Code
-    }
+//     if e, ok := err.(*fiber.Error); ok {
+//         code = e.Code
+//     }
     
-    return c.Status(code).JSON(fiber.Map{
-        "error": err.Error(),
-    })
-}
+//     return c.Status(code).JSON(fiber.Map{
+//         "error": err.Error(),
+//     })
+// }
