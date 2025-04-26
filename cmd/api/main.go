@@ -10,20 +10,22 @@ import (
 
 	"github.com/devdahcoder/golang-todo-api/internal/config"
 	"github.com/devdahcoder/golang-todo-api/internal/server"
+	"go.uber.org/zap"
 )
 
 func main() {
+
 	cfg, err := config.Load()
     if err != nil {
-        log.Fatalf("Failed to load config: %v", err)
+		cfg.ZapLogger.Fatal("Failed to load config", zap.Error(err))
     }
     defer cfg.Close()
 	
 	app := server.NewServer(cfg)
     
     go func() {
-		log.Printf("Starting server on %s", cfg.ServerAddress)
-        if err := app.Listen(cfg.ServerAddress); err != nil {
+		cfg.ZapLogger.Info("Starting server", zap.String("address", cfg.ServerAddress))
+        if err := app.Listen(":" + cfg.ServerAddress); err != nil {
             log.Fatalf("Error starting server: %v", err)
         }
     }()
@@ -32,16 +34,16 @@ func main() {
     signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
     sig := <-quit
     
-    log.Printf("Received shutdown signal: %v", sig)
+	cfg.ZapLogger.Info("Received shutdown signal", zap.String("signal", sig.String()))
 
     _, cancel := context.WithTimeout(context.Background(), 15*time.Second)
     defer cancel()
 
-    log.Println("Initiating graceful shutdown...")
+	cfg.ZapLogger.Info("Shutting down server...")
     if err := app.Shutdown(); err != nil {
-        log.Printf("Warning: Graceful shutdown failed: %v", err)
+		cfg.ZapLogger.Error("Error shutting down server", zap.Error(err))
     }
     
-    log.Println("Server shutdown complete")
+	cfg.ZapLogger.Info("Server shutdown complete")
 
 }

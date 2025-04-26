@@ -28,11 +28,11 @@ func (h *UserHandler) GetUser(c fiber.Ctx) error {
     ctx := c.Context()
     user, err := h.userService.GetUser(ctx, uint(id))
     if err != nil {
-        if err == user.ErrUserNotFound {
-            return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
-                "error": "User not found",
-            })
-        }
+        // if err == user.ErrUserNotFound {
+        //     return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+        //         "error": "User not found",
+        //     })
+        // }
         return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
             "error": "Failed to get user",
         })
@@ -44,11 +44,11 @@ func (h *UserHandler) GetUser(c fiber.Ctx) error {
 func (h *UserHandler) CreateUser(c fiber.Ctx) error {
     var input user.CreateUserInput
     
-    if err := c.BodyParser(&input); err != nil {
-        return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-            "error": "Invalid request body",
-        })
-    }
+    // if err := c.BodyParser(&input); err != nil {
+    //     return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+    //         "error": "Invalid request body",
+    //     })
+    // }
     
     // Validate input
     // Use a validation package here
@@ -70,27 +70,28 @@ func (h *UserHandler) CreateUser(c fiber.Ctx) error {
 }
 
 func (h *UserHandler) Login(c *fiber.Ctx) error {
-    var input user.LoginInput
+    // var input user.LoginInput
     
-    if err := c.BodyParser(&input); err != nil {
-        return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-            "error": "Invalid request body",
-        })
-    }
+    // if err := c.BodyParser(&input); err != nil {
+    //     return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+    //         "error": "Invalid request body",
+    //     })
+    // }
     
-    ctx := c.Context()
-    authResponse, err := h.userService.Login(ctx, input)
-    if err != nil {
-        if err == user.ErrInvalidCredentials {
-            return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-                "error": "Invalid credentials",
-            })
-        }
-        return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-            "error": "Login failed",
-        })
-    }
+    // ctx := c.Context()
+    // authResponse, err := h.userService.Login(ctx, input)
+    // if err != nil {
+    //     if err == user.ErrInvalidCredentials {
+    //         return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+    //             "error": "Invalid credentials",
+    //         })
+    //     }
+    //     return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+    //         "error": "Login failed",
+    //     })
+    // }
     
-    return c.JSON(authResponse)
+    // return c.JSON(authResponse)
+    return nil
 }
 

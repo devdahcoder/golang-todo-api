@@ -3,11 +3,13 @@ package config
 import (
 	"database/sql"
 	"fmt"
-	"log"
+	"os"
 	"time"
 
 	"github.com/devdahcoder/golang-todo-api/internal/database"
+	"github.com/devdahcoder/golang-todo-api/pkg/logger"
 	"github.com/devdahcoder/golang-todo-api/util"
+	"go.uber.org/zap"
 )
 
 type Config struct {
@@ -19,16 +21,24 @@ type Config struct {
     CacheEnabled    bool
     ShutdownTimeout time.Duration
 	Db *sql.DB
+    ZapLogger *logger.Logger
 }
 
 func Load() (*Config, error) {
+    zapLogger := logger.NewLogger(logger.LoggerConfig{
+		LogLevel: "debug",
+		Output:   os.Stdout,
+		SkipPaths: []string{"/health"},
+	})
+	defer zapLogger.Close()
+    
 	env, err := util.NewEnvConfig()
     if err != nil {
-        log.Printf("Warning: Error loading environment variables: %v", err)
+        zapLogger.Warn("Error loading environment variables", zap.Error(err))
         env = &util.EnvConfig{}
     }
 
-	db, err := database.NewDatabaseConfig(env)
+	db, err := database.NewDatabaseConfig(env, zapLogger)
     if err != nil {
         return nil, fmt.Errorf("failed to initialize database: %w", err)
     }
@@ -42,6 +52,7 @@ func Load() (*Config, error) {
         CacheEnabled:    env.GetEnvAsBool("CACHE_ENABLED", false),
         ShutdownTimeout: time.Duration(env.GetEnvAsInt("SHUTDOWN_TIMEOUT_SECONDS", 5)) * time.Second,
 		Db: db,
+        ZapLogger: zapLogger,
     }
     
     return config, nil

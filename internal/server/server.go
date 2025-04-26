@@ -10,6 +10,7 @@ import (
 	"github.com/gofiber/fiber/v3/middleware/cors"
 	"github.com/gofiber/fiber/v3/middleware/logger"
 	"github.com/gofiber/fiber/v3/middleware/recover"
+	"go.uber.org/zap"
 )
 
 
@@ -20,6 +21,7 @@ func NewServer(cfg *config.Config) *fiber.App {
 	tokenMaker, err := token.NewJWTMaker(cfg.JWTSecret)
 
 	if err != nil {
+		cfg.ZapLogger.Fatal("Failed to create token maker", zap.Error(err))
 		panic(err)
 	}
 
@@ -29,13 +31,12 @@ func NewServer(cfg *config.Config) *fiber.App {
 
 	app := fiber.New(fiber.Config{
 		// StrictRouting: true,
-		// ErrorHandler:  customErrorHandler,		
+		// ErrorHandler:  customErrorHandler,
 	})
 
 	app.Use(logger.New())
     app.Use(recover.New())
     app.Use(cors.New())
-
 	setupRoutes(app, userHandler, tokenMaker)
 
 	return app
