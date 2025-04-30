@@ -26,6 +26,8 @@ func setupRoutes(
     app.Get("/health", func(c fiber.Ctx) error {
         return c.JSON(fiber.Map{
             "status": "ok",
+            "message": "API is running",
+            "version": "1.0.0",
         })
     })
 }

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgxpool"
 	_ "github.com/lib/pq"
 	"go.uber.org/zap"
 
@@ -37,7 +38,7 @@ func (dc *DatabaseConfig) ConnectionString() string {
 		dc.User, dc.Password, dc.Host, dc.Port, dc.Database, dc.SSLMode)
 }
 
-func NewDatabaseConfig(env *util.EnvConfig, zapLogger *logger.Logger) (*sql.DB, error) {
+func NewPqDatabaseConfig(env *util.EnvConfig, zapLogger *logger.Logger) (*sql.DB, error) {
 	dbCfg := &DatabaseConfig{
 		Host: env.GetEnv("DB_HOST", "localhost"),
 		Port: env.GetEnvAsInt("DB_PORT", 5432),
@@ -89,4 +90,78 @@ func NewDatabaseConfig(env *util.EnvConfig, zapLogger *logger.Logger) (*sql.DB, 
 	dbCfg.zapLogger.Info("Database connection established", zap.String("host", dbCfg.Host), zap.Int("port", dbCfg.Port))
 
 	return db, nil
+}
+
+func (dbCfg *DatabaseConfig) NewPgxDatabaseConfig(env *util.EnvConfig, zapLogger *logger.Logger) (*pgxpool.Pool, error) {
+	dbCfg = &DatabaseConfig{
+		Host: env.GetEnv("DB_HOST", "localhost"),
+		Port: env.GetEnvAsInt("DB_PORT", 5432),
+		User: env.GetEnv("DB_USER", "postgres"),
+		Password: env.GetEnv("DB_PASSWORD", "postgres"),
+		Database: env.GetEnv("DB_DATABASE", "myapp"),
+		SSLMode: env.GetEnv("DB_SSLMODE", "disable"),
+		
+		MaxOpenConns:    env.GetEnvAsInt("MAX_OPEN_CONNS", 25),
+		MaxIdleConns:    env.GetEnvAsInt("MAX_IDLE_CONNS", 25),
+		MaxConnLifetime: time.Duration(env.GetEnvAsInt("MAX_CONN_LIFETIME_SECONDS", 1800)) * time.Second,
+		MaxIdleTime:     time.Duration(env.GetEnvAsInt("MAX_IDLE_TIME_SECONDS", 1800)) * time.Second,
+		MaxRetries:      env.GetEnvAsInt("MAX_RETRIES", 3),
+		RetryInterval:   env.GetEnvAsInt("RETRY_INTERVAL_SECONDS", 5),
+		zapLogger: zapLogger,
+	}
+
+	var pool *pgxpool.Pool
+	var err error
+
+	config, err := pgxpool.ParseConfig(dbCfg.ConnectionString())
+	if err != nil {
+		return nil, fmt.Errorf("error parsing connection string: %v", err)
+	}
+
+	config.MaxConns = int32(dbCfg.MaxOpenConns)
+	config.MaxConnLifetime = dbCfg.MaxConnLifetime
+	config.MaxConnIdleTime = dbCfg.MaxIdleTime
+
+	for i := 0; i < dbCfg.MaxRetries; i++ {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		pool, err = pgxpool.NewWithConfig(ctx, config)
+		cancel()
+
+		if err != nil {
+			dbCfg.zapLogger.Error("Attempt to connect to the database failed", 
+				zap.Int("attempt", i+1), 
+				zap.Error(err))
+			
+			if i < dbCfg.MaxRetries-1 {
+				time.Sleep(time.Duration(dbCfg.RetryInterval) * time.Second)
+				continue
+			}
+			return nil, fmt.Errorf("failed to connect to database after %d attempts: %v", dbCfg.MaxRetries, err)
+		}
+
+		ctx, cancel = context.WithTimeout(context.Background(), 5*time.Second)
+		err = pool.Ping(ctx)
+		cancel()
+
+		if err != nil {
+			pool.Close()
+			dbCfg.zapLogger.Error("Failed to ping database", 
+				zap.Int("attempt", i+1), 
+				zap.Error(err))
+			
+			if i < dbCfg.MaxRetries-1 {
+				time.Sleep(time.Duration(dbCfg.RetryInterval) * time.Second)
+				continue
+			}
+			return nil, fmt.Errorf("failed to ping database after %d attempts: %v", dbCfg.MaxRetries, err)
+		}
+
+		break
+	}
+
+	dbCfg.zapLogger.Info("Database connection established with pgx", 
+		zap.String("host", dbCfg.Host), 
+		zap.Int("port", dbCfg.Port))
+
+	return pool, nil
 }

@@ -19,6 +19,7 @@ func NewUserHandler(userService user.Service) *UserHandler {
 
 func (h *UserHandler) GetUser(c fiber.Ctx) error {
     id, err := strconv.ParseUint(c.Params("id"), 10, 32)
+
     if err != nil {
         return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
             "error": "Invalid user ID",
@@ -26,19 +27,19 @@ func (h *UserHandler) GetUser(c fiber.Ctx) error {
     }
     
     ctx := c.Context()
-    user, err := h.userService.GetUser(ctx, uint(id))
+    u, err := h.userService.GetUser(ctx, uint(id))
     if err != nil {
-        // if err == user.ErrUserNotFound {
-        //     return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
-        //         "error": "User not found",
-        //     })
-        // }
+        if err == user.ErrUserNotFound {
+            return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+                "error": "User not found",
+            })
+        }
         return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
             "error": "Failed to get user",
         })
     }
     
-    return c.JSON(user)
+    return c.JSON(u)
 }
 
 func (h *UserHandler) CreateUser(c fiber.Ctx) error {

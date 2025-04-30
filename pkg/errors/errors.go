@@ -1,0 +1,100 @@
+package errors
+
+import "net/http"
+
+type AppError struct {
+	Code    int    `json:"code"`
+	Message string `json:"message"`
+	Err     error  `json:"-"`
+}
+
+func NewError(code int, message string, err error) *AppError {
+	return &AppError{
+		Code:    code,
+		Message: message,
+		Err:     err,
+	}
+}
+
+func InternalServerError(message string, err error) *AppError {
+	return &AppError{
+		Code:    http.StatusInternalServerError,
+		Message: message,
+		Err:     err,
+	}
+}
+
+func NotFoundError(message string) *AppError {
+	return &AppError{
+		Code:    http.StatusNotFound,
+		Message: message,
+		Err:     nil,
+	}
+}
+
+func (e *AppError) Error() string {
+    if e.Err != nil {
+        return e.Err.Error()
+    }
+    return e.Message
+}
+
+func (e *AppError) Unwrap() error {
+	return e.Err
+}
+
+func (e *AppError) Is(target error) bool {
+	return e.Code == target.(*AppError).Code
+}
+
+func (e *AppError) ErrorCode() int {
+	return e.Code
+}
+
+func (e *AppError) ErrorMessage() string {
+	return e.Message
+}
+
+func (e *AppError) ErrorResponse() map[string]interface{} {
+	return map[string]interface{}{
+		"code":    e.Code,
+		"message": e.Message,
+	}
+}
+
+func (e *AppError) ErrorResponseWithError() map[string]interface{} {
+	return map[string]interface{}{
+		"code":    e.Code,
+		"message": e.Message,
+		"error":   e.Err.Error(),
+	}
+}
+
+func (e *AppError) ErrorResponseWithStatus() map[string]interface{} {
+	return map[string]interface
+{}{
+		"code":    e.Code,
+		"message": e.Message,
+	}
+}
+
+func (e *AppError) ErrorResponseWithCode() map[string]interface{} {
+	return map[string]interface{}{
+		"code":    e.Code,
+		"message": e.Message,
+	}
+}
+
+func (e *AppError) ErrorResponseWithMessage() map[string]interface{} {
+	return map[string]interface{}{
+		"message": e.Message,
+	}
+}
+
+func (e *AppError) ErrorResponseWithErrorMessage() map[string]interface{} {
+	return map[string]interface{}{
+		"error":   e.Err.Error(),
+		"message": e.Message,
+	}
+}
+

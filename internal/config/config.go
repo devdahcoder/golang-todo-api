@@ -38,7 +38,7 @@ func Load() (*Config, error) {
         env = &util.EnvConfig{}
     }
 
-	db, err := database.NewDatabaseConfig(env, zapLogger)
+	db, err := database.NewPqDatabaseConfig(env, zapLogger)
     if err != nil {
         return nil, fmt.Errorf("failed to initialize database: %w", err)
     }

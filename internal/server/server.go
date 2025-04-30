@@ -30,7 +30,7 @@ func NewServer(cfg *config.Config) *fiber.App {
 	userHandler := handlers.NewUserHandler(userService)
 
 	app := fiber.New(fiber.Config{
-		// StrictRouting: true,
+		StrictRouting: true,
 		// ErrorHandler:  customErrorHandler,
 	})
 
