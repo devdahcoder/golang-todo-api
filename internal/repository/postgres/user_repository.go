@@ -3,9 +3,10 @@ package postgres
 import (
 	"context"
 	// "database/sql"
-	// "errors"
+	"errors"
 
 	"github.com/devdahcoder/golang-todo-api/internal/domain/user"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -47,7 +48,20 @@ func (r *userRepository) Find(ctx context.Context, id uint) (*user.User, error) 
 }
 
 func (r *userRepository) FindByEmail(ctx context.Context, email string) (*user.User, error) {
-    return nil, nil
+
+    var u user.User
+
+    err := r.db.QueryRow(context.Background(), 
+        "SELECT id, username, email, password, created_at, updated_at FROM users WHERE email = $1", email).
+        Scan(&u.ID, &u.Username, &u.Email, &u.Password, &u.CreatedAt, &u.UpdatedAt)
+
+    if err != nil {
+        if errors.Is(err, pgx.ErrNoRows) {
+            return nil, user.ErrUserNotFound
+        }
+        return nil, err
+    }
+    return &u, nil
 }
 
 func (r *userRepository) Create(ctx context.Context, u *user.User) error {

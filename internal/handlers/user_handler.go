@@ -98,7 +98,13 @@ func (h *UserHandler) CreateUser(c fiber.Ctx) error {
 }
 
 func (h *UserHandler) Login(c fiber.Ctx) error {
-    var input user.LoginInput
+    input := user.LoginInput{}
+
+    if err := c.Bind().Body(&input); err != nil {
+        return errors.BadRequestError(c, "invalid request body", er.New("invalid request body"), signinRequestExample, fiber.Map{
+            "invalid_fields": "invalid request body",
+        })
+    }
 
     if err := validator.InvalidFieldValidation(c, map[string]bool{
 		"email":    true,
@@ -121,12 +127,6 @@ func (h *UserHandler) Login(c fiber.Ctx) error {
             "invalid_fields": v.ValidationErrorField,
         })
 	}
-    
-    if err := c.Bind().Body(&input); err != nil {
-        return errors.BadRequestError(c, "invalid request body", er.New("invalid request body"), signinRequestExample, fiber.Map{
-            "invalid_fields": "invalid request body",
-        })
-    }
     
     ctx := c.Context()
     response, err := h.userService.Login(ctx, input)
