@@ -2,6 +2,7 @@ package server
 
 import (
 	"github.com/devdahcoder/golang-todo-api/internal/handlers"
+	// "github.com/devdahcoder/golang-todo-api/internal/middleware"
 	"github.com/devdahcoder/golang-todo-api/pkg/token"
 	"github.com/gofiber/fiber/v3"
 )
@@ -15,21 +16,23 @@ func setupRoutes(
     
     auth := v1.Group("/auth")
     auth.Post("/register", userHandler.CreateUser)
-    // auth.Post("/login", userHandler.Login)
+    auth.Post("/login", userHandler.Login)
     
-    // users := v1.Group("/users", middleware.Auth(tokenMaker))
-    // users.Get("/", userHandler.ListUsers)
+    users := v1.Group("/users")
+    users.Get("/", userHandler.ListUsers)
     // users.Get("/:id", userHandler.GetUser)
     // users.Put("/:id", userHandler.UpdateUser)
     // users.Delete("/:id", userHandler.DeleteUser)
     
     app.Get("/health", func(c fiber.Ctx) error {
-        return c.JSON(fiber.Map{
+        return c.Status(fiber.StatusOK).JSON(fiber.Map{
             "status": "ok",
             "message": "API is running",
             "version": "1.0.0",
         })
     })
+
+    
 }
 
 func customErrorHandler(c *fiber.Ctx, err error) error {

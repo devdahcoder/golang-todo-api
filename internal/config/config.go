@@ -1,7 +1,7 @@
 package config
 
 import (
-	"database/sql"
+	// "database/sql"
 	"fmt"
 	"os"
 	"time"
@@ -9,6 +9,7 @@ import (
 	"github.com/devdahcoder/golang-todo-api/internal/database"
 	"github.com/devdahcoder/golang-todo-api/pkg/logger"
 	"github.com/devdahcoder/golang-todo-api/util"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"go.uber.org/zap"
 )
 
@@ -20,7 +21,7 @@ type Config struct {
     LogLevel        string
     CacheEnabled    bool
     ShutdownTimeout time.Duration
-	Db *sql.DB
+	Db *pgxpool.Pool
     ZapLogger *logger.Logger
 }
 
@@ -38,7 +39,7 @@ func Load() (*Config, error) {
         env = &util.EnvConfig{}
     }
 
-	db, err := database.NewPqDatabaseConfig(env, zapLogger)
+	db, err := database.NewPgxDatabaseConfig(env, zapLogger)
     if err != nil {
         return nil, fmt.Errorf("failed to initialize database: %w", err)
     }
@@ -58,9 +59,8 @@ func Load() (*Config, error) {
     return config, nil
 }
 
-func (c *Config) Close() error {
+func (c *Config) Close() {
     if c.Db != nil {
-        return c.Db.Close()
+        c.Db.Close()
     }
-    return nil
 }

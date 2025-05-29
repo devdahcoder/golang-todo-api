@@ -85,17 +85,16 @@ func (s *service) Login(ctx context.Context, input LoginInput) (*AuthResponse, e
     if err != nil {
         return nil, err
     }
+    
     if user == nil {
-        return nil, ErrInvalidCredentials
+        return nil, ErrUserNotFound
     }
     
-    // Compare passwords
     err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(input.Password))
     if err != nil {
         return nil, ErrInvalidCredentials
     }
     
-    // Generate token
     token, err := s.tokenMaker.CreateToken(user.ID, 24*time.Hour)
     if err != nil {
         return nil, err
@@ -114,6 +113,7 @@ func (s *service) UpdateUser(ctx context.Context, id uint, input UpdateUserInput
 func (s *service) DeleteUser(ctx context.Context, id uint) error {
     return s.repo.Delete(ctx, id)
 }
+
 func (s *service) ListUsers(ctx context.Context, limit, offset int) ([]*User, error) {
     return s.repo.List(ctx, limit, offset)
 }

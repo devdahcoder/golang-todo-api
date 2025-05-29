@@ -30,16 +30,8 @@ type DatabaseConfig struct {
 	zapLogger *logger.Logger
 }
 
-func (dc *DatabaseConfig) ConnectionString() string {
-		dc.zapLogger.Info("Database connection string", zap.String("connection_string", fmt.Sprintf("postgres://%s:%s@%s:%d/%s?sslmode=%s",
-			dc.User, dc.Password, dc.Host, dc.Port, dc.Database, dc.SSLMode)))
-
-	return fmt.Sprintf("postgres://%s:%s@%s:%d/%s?sslmode=%s",
-		dc.User, dc.Password, dc.Host, dc.Port, dc.Database, dc.SSLMode)
-}
-
-func NewPqDatabaseConfig(env *util.EnvConfig, zapLogger *logger.Logger) (*sql.DB, error) {
-	dbCfg := &DatabaseConfig{
+func LoadDbEnvConfig(env *util.EnvConfig, zapLogger *logger.Logger) *DatabaseConfig {
+	return &DatabaseConfig{
 		Host: env.GetEnv("DB_HOST", "localhost"),
 		Port: env.GetEnvAsInt("DB_PORT", 5432),
 		User: env.GetEnv("DB_USER", "postgres"),
@@ -55,12 +47,32 @@ func NewPqDatabaseConfig(env *util.EnvConfig, zapLogger *logger.Logger) (*sql.DB
 		RetryInterval:   env.GetEnvAsInt("RETRY_INTERVAL_SECONDS", 5),
 		zapLogger: zapLogger,
 	}
+}
+
+func (dc *DatabaseConfig) PqConnectionString() string {
+		dc.zapLogger.Info("Database connection string", zap.String("connection_string", fmt.Sprintf("postgres://%s:%s@%s:%d/%s?sslmode=%s",
+			dc.User, dc.Password, dc.Host, dc.Port, dc.Database, dc.SSLMode)))
+
+	return fmt.Sprintf("postgres://%s:%s@%s:%d/%s?sslmode=%s",
+		dc.User, dc.Password, dc.Host, dc.Port, dc.Database, dc.SSLMode)
+}
+
+func (dc *DatabaseConfig) PgxConnectionString() string {
+		dc.zapLogger.Info("Database connection string", zap.String("connection_string", fmt.Sprintf("postgres://%s:%s@%s:%d/%s",
+			dc.User, dc.Password, dc.Host, dc.Port, dc.Database)))
+
+	return fmt.Sprintf("postgres://%s:%s@%s:%d/%s",
+		dc.User, dc.Password, dc.Host, dc.Port, dc.Database)
+}
+
+func NewPqDatabaseConfig(env *util.EnvConfig, zapLogger *logger.Logger) (*sql.DB, error) {
+	dbCfg := LoadDbEnvConfig(env, zapLogger)
 
 	var db *sql.DB
 	var err error
 
 	for i := 0; i < dbCfg.MaxRetries; i++ {
-		db, err = sql.Open("postgres", dbCfg.ConnectionString())
+		db, err = sql.Open("postgres", dbCfg.PqConnectionString())
 		
 		if err != nil {
 			dbCfg.zapLogger.Error("Attempt to connect to the database failed", zap.Int("attempt", i+1), zap.Error(err))
@@ -92,28 +104,13 @@ func NewPqDatabaseConfig(env *util.EnvConfig, zapLogger *logger.Logger) (*sql.DB
 	return db, nil
 }
 
-func (dbCfg *DatabaseConfig) NewPgxDatabaseConfig(env *util.EnvConfig, zapLogger *logger.Logger) (*pgxpool.Pool, error) {
-	dbCfg = &DatabaseConfig{
-		Host: env.GetEnv("DB_HOST", "localhost"),
-		Port: env.GetEnvAsInt("DB_PORT", 5432),
-		User: env.GetEnv("DB_USER", "postgres"),
-		Password: env.GetEnv("DB_PASSWORD", "postgres"),
-		Database: env.GetEnv("DB_DATABASE", "myapp"),
-		SSLMode: env.GetEnv("DB_SSLMODE", "disable"),
-		
-		MaxOpenConns:    env.GetEnvAsInt("MAX_OPEN_CONNS", 25),
-		MaxIdleConns:    env.GetEnvAsInt("MAX_IDLE_CONNS", 25),
-		MaxConnLifetime: time.Duration(env.GetEnvAsInt("MAX_CONN_LIFETIME_SECONDS", 1800)) * time.Second,
-		MaxIdleTime:     time.Duration(env.GetEnvAsInt("MAX_IDLE_TIME_SECONDS", 1800)) * time.Second,
-		MaxRetries:      env.GetEnvAsInt("MAX_RETRIES", 3),
-		RetryInterval:   env.GetEnvAsInt("RETRY_INTERVAL_SECONDS", 5),
-		zapLogger: zapLogger,
-	}
+func NewPgxDatabaseConfig(env *util.EnvConfig, zapLogger *logger.Logger) (*pgxpool.Pool, error) {
+	dbCfg := LoadDbEnvConfig(env, zapLogger)
 
 	var pool *pgxpool.Pool
 	var err error
 
-	config, err := pgxpool.ParseConfig(dbCfg.ConnectionString())
+	config, err := pgxpool.ParseConfig(dbCfg.PgxConnectionString())
 	if err != nil {
 		return nil, fmt.Errorf("error parsing connection string: %v", err)
 	}
@@ -122,7 +119,7 @@ func (dbCfg *DatabaseConfig) NewPgxDatabaseConfig(env *util.EnvConfig, zapLogger
 	config.MaxConnLifetime = dbCfg.MaxConnLifetime
 	config.MaxConnIdleTime = dbCfg.MaxIdleTime
 
-	for i := 0; i < dbCfg.MaxRetries; i++ {
+	for i := range dbCfg.MaxRetries {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		pool, err = pgxpool.NewWithConfig(ctx, config)
 		cancel()

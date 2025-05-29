@@ -27,7 +27,7 @@ func NewServer(cfg *config.Config) *fiber.App {
 
 	userService := user.NewService(userRepository, tokenMaker)
 
-	userHandler := handlers.NewUserHandler(userService)
+	userHandler := handlers.NewUserHandler(userService, cfg.ZapLogger)
 
 	app := fiber.New(fiber.Config{
 		StrictRouting: true,
