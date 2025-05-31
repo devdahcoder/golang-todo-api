@@ -24,7 +24,7 @@ type UpdateUserInput struct {
     Email    *string `json:"email" validate:"omitempty,email"`
 }
 
-type LoginInput struct {
+type LoginUserInput struct {
     Email    string `json:"email" validate:"required,email"`
     Password string `json:"password" validate:"required"`
 }

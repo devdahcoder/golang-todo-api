@@ -21,7 +21,7 @@ type Service interface {
     CreateUser(ctx context.Context, input CreateUserInput) (*User, error)
     UpdateUser(ctx context.Context, id uint, input UpdateUserInput) (*User, error)
     DeleteUser(ctx context.Context, id uint) error
-    Login(ctx context.Context, input LoginInput) (*AuthResponse, error)
+    Login(ctx context.Context, input LoginUserInput) (*AuthResponse, error)
     ListUsers(ctx context.Context, limit, offset int) ([]*User, error)
 }
 
@@ -49,21 +49,12 @@ func (s *service) GetUser(ctx context.Context, id uint) (*User, error) {
 }
 
 func (s *service) CreateUser(ctx context.Context, input CreateUserInput) (*User, error) {
-    // Check if email already exists
-    existingUser, err := s.repo.FindByEmail(ctx, input.Email)
-    if err != nil {
-        return nil, err
-    }
-    if existingUser != nil {
-        return nil, ErrEmailAlreadyExists
-    }
-    
-    // Hash password
+
     hashedPassword, err := bcrypt.GenerateFromPassword([]byte(input.Password), bcrypt.DefaultCost)
     if err != nil {
         return nil, err
     }
-    
+
     now := time.Now()
     user := &User{
         Username:  input.Username,
@@ -72,15 +63,15 @@ func (s *service) CreateUser(ctx context.Context, input CreateUserInput) (*User,
         CreatedAt: now,
         UpdatedAt: now,
     }
-    
-    if err := s.repo.Create(ctx, user); err != nil {
+
+    err = s.repo.Create(ctx, user)
+    if err != nil {
         return nil, err
     }
-    
     return user, nil
 }
 
-func (s *service) Login(ctx context.Context, input LoginInput) (*AuthResponse, error) {
+func (s *service) Login(ctx context.Context, input LoginUserInput) (*AuthResponse, error) {
     user, err := s.repo.FindByEmail(ctx, input.Email)
     if err != nil {
         return nil, err

@@ -70,23 +70,45 @@ func (h *UserHandler) GetUser(c fiber.Ctx) error {
 }
 
 func (h *UserHandler) CreateUser(c fiber.Ctx) error {
-    var input user.CreateUserInput
+    input := user.CreateUserInput{}
     
-    // if err := c.BodyParser(&input); err != nil {
-    //     return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-    //         "error": "Invalid request body",
-    //     })
-    // }
+    if err := c.Bind().Body(&input); err != nil {
+        return errors.BadRequestError(c, "invalid request body", er.New("invalid request body"), signinRequestExample, fiber.Map{
+            "invalid_fields": "invalid request body",
+        })
+    }
     
-    // Validate input
-    // Use a validation package here
+    if err := validator.InvalidFieldValidation(c, map[string]bool{
+		"email":    true,
+		"password": true,
+        "username": true,
+	}, input); err != nil {
+		if invalidFieldErr, ok := validator.IsInvalidFieldError(err); ok {
+            return errors.BadRequestError(c, "Invalid request body", err, signinRequestExample, fiber.Map{
+				"invalid_fields": invalidFieldErr.Fields,
+			})
+		}
+		return errors.BadRequestError(c, "invalid request body", err, signinRequestExample, fiber.Map{})
+	}
+
+	v := validator.NewErrorValidator()
+	v.Check(input.Email != "", "email", "email must be provided")
+	v.Check(input.Password != "", "password", "password must be provided")
+    v.Check(input.Username != "", "username", "username must be provided")
+
+	if !v.IsValid() {
+		return errors.BadRequestError(c, "invalid request body", er.New("invalid request body"), signinRequestExample, fiber.Map{
+            "invalid_fields": v.ValidationErrorField,
+        })
+	}
+    
     
     ctx := c.Context()
-    createdUser, err := h.userService.CreateUser(ctx, input)
+    response, err := h.userService.CreateUser(ctx, input)
     if err != nil {
         if err == user.ErrEmailAlreadyExists {
             return c.Status(fiber.StatusConflict).JSON(fiber.Map{
-                "error": "Email already exists",
+                "error": "User already exists",
             })
         }
         return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
@@ -94,11 +116,11 @@ func (h *UserHandler) CreateUser(c fiber.Ctx) error {
         })
     }
     
-    return c.Status(fiber.StatusCreated).JSON(createdUser)
+    return c.Status(fiber.StatusCreated).JSON(response)
 }
 
 func (h *UserHandler) Login(c fiber.Ctx) error {
-    input := user.LoginInput{}
+    input := user.LoginUserInput{}
 
     if err := c.Bind().Body(&input); err != nil {
         return errors.BadRequestError(c, "invalid request body", er.New("invalid request body"), signinRequestExample, fiber.Map{

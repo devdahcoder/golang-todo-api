@@ -65,20 +65,18 @@ func (r *userRepository) FindByEmail(ctx context.Context, email string) (*user.U
 }
 
 func (r *userRepository) Create(ctx context.Context, u *user.User) error {
-    // query := `INSERT INTO users (username, email, password, created_at, updated_at) 
-    //           VALUES ($1, $2, $3, $4, $5) RETURNING id`
-              
-    // row := r.db.QueryRowContext(
-    //     ctx,
-    //     query,
-    //     u.Username,
-    //     u.Email,
-    //     u.Password,
-    //     u.CreatedAt,
-    //     u.UpdatedAt,
-    // )
-    
-    // return row.Scan(&u.ID)
+    err := r.db.QueryRow(ctx, 
+        "INSERT INTO users (username, email, password, created_at, updated_at) VALUES ($1, $2, $3, $4, $5) RETURNING email",
+        u.Username, u.Email, u.Password, u.CreatedAt, u.UpdatedAt,
+    ).Scan(&u.Email)
+
+    if err != nil {
+        if errors.Is(err, pgx.ErrNoRows) {
+            return user.ErrEmailAlreadyExists
+        }
+        return err
+    }
+
     return nil
 }
 
