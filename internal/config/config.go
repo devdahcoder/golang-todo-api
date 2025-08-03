@@ -33,7 +33,7 @@ func Load() (*Config, error) {
 	})
 	defer zapLogger.Close()
     
-	env, err := util.NewEnvConfig()
+	env, err := util.NewEnvConfig(zapLogger)
     if err != nil {
         zapLogger.Warn("Error loading environment variables", zap.Error(err))
         env = &util.EnvConfig{}

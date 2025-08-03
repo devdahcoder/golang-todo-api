@@ -44,6 +44,106 @@ type queryParams struct {
 	value map[string]string
 }
 
+const (
+    InvalidRequestBody = "invalid request body"
+)
+
+func (h *UserHandler) CreateUser(c fiber.Ctx) error {
+    input := user.CreateUserInput{}
+    
+    if err := c.Bind().Body(&input); err != nil {
+        return errors.BadRequestError(c, InvalidRequestBody, er.New(InvalidRequestBody), signinRequestExample, fiber.Map{
+            "invalid_fields": InvalidRequestBody,
+        })
+    }
+    
+    if err := validator.InvalidFieldValidation(c, map[string]bool{
+		"email":    true,
+		"password": true,
+        "username": true,
+	}, input); err != nil {
+		if invalidFieldErr, ok := validator.IsInvalidFieldError(err); ok {
+            return errors.BadRequestError(c, InvalidRequestBody, err, signinRequestExample, fiber.Map{
+				"invalid_fields": invalidFieldErr.Fields,
+			})
+		}
+		return errors.BadRequestError(c, InvalidRequestBody, err, signinRequestExample, fiber.Map{})
+	}
+
+	v := validator.NewErrorValidator()
+	v.Check(input.Email != "", "email", "email must be provided")
+	v.Check(input.Password != "", "password", "password must be provided")
+    v.Check(input.Username != "", "username", "username must be provided")
+
+	if !v.IsValid() {
+		return errors.BadRequestError(c, InvalidRequestBody, er.New(InvalidRequestBody), signinRequestExample, fiber.Map{
+            "invalid_fields": v.ValidationErrorField,
+        })
+	}
+    
+    ctx := c.Context()
+    response, err := h.userService.CreateUser(ctx, input)
+    if err != nil {
+        if err == user.ErrEmailAlreadyExists {
+            return c.Status(fiber.StatusConflict).JSON(fiber.Map{
+                "error": "User already exists",
+            })
+        }
+        return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+            "error": "Failed to create user",
+        })
+    }
+    
+    return c.Status(fiber.StatusCreated).JSON(response)
+}
+
+func (h *UserHandler) Login(c fiber.Ctx) error {
+    input := user.LoginUserInput{}
+
+    if err := c.Bind().Body(&input); err != nil {
+        return errors.BadRequestError(c, InvalidRequestBody, er.New(InvalidRequestBody), signinRequestExample, fiber.Map{
+            "invalid_fields": InvalidRequestBody,
+        })
+    }
+
+    if err := validator.InvalidFieldValidation(c, map[string]bool{
+		"email":    true,
+		"password": true,
+	}, input); err != nil {
+		if invalidFieldErr, ok := validator.IsInvalidFieldError(err); ok {
+            return errors.BadRequestError(c, InvalidRequestBody, err, signinRequestExample, fiber.Map{
+				"invalid_fields": invalidFieldErr.Fields,
+			})
+		}
+		return errors.BadRequestError(c, InvalidRequestBody, err, signinRequestExample, fiber.Map{})
+	}
+
+	v := validator.NewErrorValidator()
+	v.Check(input.Email != "", "email", "email must be provided")
+	v.Check(input.Password != "", "password", "password must be provided")
+
+	if !v.IsValid() {
+		return errors.BadRequestError(c, InvalidRequestBody, er.New(InvalidRequestBody), signinRequestExample, fiber.Map{
+            "invalid_fields": v.ValidationErrorField,
+        })
+	}
+    
+    ctx := c.Context()
+    response, err := h.userService.Login(ctx, input)
+    if err != nil {
+        if err == user.ErrInvalidCredentials {
+            return errors.UnAuthorizedError(c, "invalid credentials", err)
+        }
+        if err == user.ErrUserNotFound {
+            return errors.UnAuthorizedError(c, "user not found", err)
+        }
+        return errors.InternalServerError(c, "login failed", err)
+    }
+    
+    return c.JSON(response)
+}
+
+
 func (h *UserHandler) GetUser(c fiber.Ctx) error {
     id, err := strconv.ParseUint(c.Params("id"), 10, 32)
 
@@ -69,108 +169,70 @@ func (h *UserHandler) GetUser(c fiber.Ctx) error {
     return c.JSON(u)
 }
 
-func (h *UserHandler) CreateUser(c fiber.Ctx) error {
-    input := user.CreateUserInput{}
-    
-    if err := c.Bind().Body(&input); err != nil {
-        return errors.BadRequestError(c, "invalid request body", er.New("invalid request body"), signinRequestExample, fiber.Map{
-            "invalid_fields": "invalid request body",
+func (h *UserHandler) UpdateUser(c fiber.Ctx) error {
+    id, err := strconv.ParseUint(c.Params("id"), 10, 32)
+    if err != nil {
+        return errors.BadRequestError(c, "invalid user ID", err, nil, fiber.Map{
+            "error": "Invalid user ID format",
         })
     }
-    
-    if err := validator.InvalidFieldValidation(c, map[string]bool{
-		"email":    true,
-		"password": true,
-        "username": true,
-	}, input); err != nil {
-		if invalidFieldErr, ok := validator.IsInvalidFieldError(err); ok {
-            return errors.BadRequestError(c, "Invalid request body", err, signinRequestExample, fiber.Map{
-				"invalid_fields": invalidFieldErr.Fields,
-			})
-		}
-		return errors.BadRequestError(c, "invalid request body", err, signinRequestExample, fiber.Map{})
-	}
 
-	v := validator.NewErrorValidator()
-	v.Check(input.Email != "", "email", "email must be provided")
-	v.Check(input.Password != "", "password", "password must be provided")
-    v.Check(input.Username != "", "username", "username must be provided")
-
-	if !v.IsValid() {
-		return errors.BadRequestError(c, "invalid request body", er.New("invalid request body"), signinRequestExample, fiber.Map{
-            "invalid_fields": v.ValidationErrorField,
+    input := user.UpdateUserInput{}
+    if err := c.Bind().Body(&input); err != nil {
+        return errors.BadRequestError(c, InvalidRequestBody, err, fiber.Map{
+            "username": "johndoe",
+            "email": "user@example.com",
+        }, fiber.Map{
+            "invalid_fields": InvalidRequestBody,
         })
-	}
-    
-    
-    ctx := c.Context()
-    response, err := h.userService.CreateUser(ctx, input)
-    if err != nil {
-        if err == user.ErrEmailAlreadyExists {
-            return c.Status(fiber.StatusConflict).JSON(fiber.Map{
-                "error": "User already exists",
+    }
+
+    if err := validator.InvalidFieldValidation(c, map[string]bool{
+        "email":    true,
+        "username": true,
+    }, input); err != nil {
+        if invalidFieldErr, ok := validator.IsInvalidFieldError(err); ok {
+            return errors.BadRequestError(c, InvalidRequestBody, err, nil, fiber.Map{
+                "invalid_fields": invalidFieldErr.Fields,
             })
         }
-        return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-            "error": "Failed to create user",
-        })
-    }
-    
-    return c.Status(fiber.StatusCreated).JSON(response)
-}
-
-func (h *UserHandler) Login(c fiber.Ctx) error {
-    input := user.LoginUserInput{}
-
-    if err := c.Bind().Body(&input); err != nil {
-        return errors.BadRequestError(c, "invalid request body", er.New("invalid request body"), signinRequestExample, fiber.Map{
-            "invalid_fields": "invalid request body",
-        })
+        return errors.BadRequestError(c, InvalidRequestBody, err, nil, fiber.Map{})
     }
 
-    if err := validator.InvalidFieldValidation(c, map[string]bool{
-		"email":    true,
-		"password": true,
-	}, input); err != nil {
-		if invalidFieldErr, ok := validator.IsInvalidFieldError(err); ok {
-            return errors.BadRequestError(c, "Invalid request body", err, signinRequestExample, fiber.Map{
-				"invalid_fields": invalidFieldErr.Fields,
-			})
-		}
-		return errors.BadRequestError(c, "invalid request body", err, signinRequestExample, fiber.Map{})
-	}
-
-	v := validator.NewErrorValidator()
-	v.Check(input.Email != "", "email", "email must be provided")
-	v.Check(input.Password != "", "password", "password must be provided")
-
-	if !v.IsValid() {
-		return errors.BadRequestError(c, "invalid request body", er.New("invalid request body"), signinRequestExample, fiber.Map{
-            "invalid_fields": v.ValidationErrorField,
-        })
-	}
-    
     ctx := c.Context()
-    response, err := h.userService.Login(ctx, input)
+    updatedUser, err := h.userService.UpdateUser(ctx, uint(id), input)
     if err != nil {
-        if err == user.ErrInvalidCredentials {
-            return errors.UnAuthorizedError(c, "invalid credentials", err)
-        }
         if err == user.ErrUserNotFound {
-            return errors.UnAuthorizedError(c, "user not found", err)
+            return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+                "error": "User not found",
+            })
         }
-        return errors.InternalServerError(c, "login failed", err)
+        return errors.InternalServerError(c, "failed to update user", err)
     }
-    
-    return c.JSON(response)
+
+    return c.JSON(updatedUser)
 }
 
-func (h *UserHandler) UpdateUser(c *fiber.Ctx) error {
-    return nil
-}
+func (h *UserHandler) DeleteUser(c fiber.Ctx) error {
+    id, err := strconv.ParseUint(c.Params("id"), 10, 32)
+    if err != nil {
+        return errors.BadRequestError(c, "invalid user ID", err, nil, fiber.Map{
+            "error": "Invalid user ID format",
+        })
+    }
 
-func (h *UserHandler) DeleteUser(c *fiber.Ctx) error {
-    return nil
+    ctx := c.Context()
+    err = h.userService.DeleteUser(ctx, uint(id))
+    if err != nil {
+        if err == user.ErrUserNotFound {
+            return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+                "error": "User not found",
+            })
+        }
+        return errors.InternalServerError(c, "failed to delete user", err)
+    }
+
+    return c.Status(fiber.StatusNoContent).Send(nil)
 }
 
 func (h *UserHandler) ListUsers(c fiber.Ctx) error {

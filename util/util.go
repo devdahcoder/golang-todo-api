@@ -4,15 +4,17 @@ import (
 	"os"
 	"strconv"
 
+	"github.com/devdahcoder/golang-todo-api/pkg/logger"
 	"github.com/joho/godotenv"
 )
 
 type EnvConfig struct{}
 
-func NewEnvConfig() (*EnvConfig, error) {
+func NewEnvConfig(zapLogger *logger.Logger) (*EnvConfig, error) {
     err := godotenv.Load()
     if err != nil {
         if os.IsNotExist(err) {
+            zapLogger.Warn("Environment variables file not found")
             return &EnvConfig{}, nil
         }
         return nil, err

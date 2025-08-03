@@ -128,3 +128,10 @@ func (e *AppError) ErrorResponseWithErrorMessage() map[string]interface{} {
 	}
 }
 
+func TooManyRequestsError(c fiber.Ctx, message string, err error) error {
+	return c.Status(fiber.StatusTooManyRequests).JSON(fiber.Map{
+		"error": message,
+		"details": err,
+	})
+}
+
